@@ -3,7 +3,7 @@ import requests
 from loguru import logger
 
 
-class QB:
+class QbittorrentBase:
     def __init__(self):
         self.config: dict = {}
         self.url: str = ""
@@ -44,17 +44,7 @@ class QB:
         }
         res = self.session.get(url, params=params)
         res.raise_for_status()
-        res_json = res.json()
-        torrents = res_json["torrents"]
-        for k, v in torrents.items():
-            category = v["category"]
-            if not category:
-                tracker = v["tracker"]
-                for _category, _trackers in self.categories.items():
-                    for _tracker in _trackers:
-                        if _tracker in tracker:
-                            self.set_category(k, _category)
-                # logger.debug(f"hash: {k}\ttracker: {v['tracker']}")
+        return res.json()
 
     def set_category(self, hashes, category):
         url = self.url + "/api/v2/torrents/setCategory"
@@ -69,8 +59,68 @@ class QB:
         else:
             logger.error("set category failed")
 
+    def add_trackers(self, hashes, urls):
+        url = self.url + "/api/v2/torrents/addTrackers"
+        data = {
+            "hash": hashes,
+            "urls": urls
+        }
+        res = self.session.post(url, data)
+        res.raise_for_status()
+        if res.status_code == 200:
+            logger.info("add trackers success")
+        else:
+            logger.error("add trackers failed")
+
+    def remove_trackers(self, hashes, urls):
+        url = self.url + "/api/v2/torrents/removeTrackers"
+        data = {
+            "hash": hashes,
+            "urls": urls
+        }
+        res = self.session.post(url, data)
+        res.raise_for_status()
+        if res.status_code == 200:
+            logger.info("remove trackers success")
+        else:
+            logger.error("remove trackers failed")
+
+
+class QbittorrentScripts(QbittorrentBase):
+    def __init__(self):
+        super().__init__()
+
+    def add_new_trackers(self, old_tracker_domain, new_tracker_domain, delete_old=False):
+        try:
+            res = self.get_maindata()
+            torrents = res["torrents"]
+            for k, v in torrents.items():
+                tracker = v["tracker"]
+                if old_tracker_domain in tracker:
+                    new_tracker = tracker.replace(old_tracker_domain, new_tracker_domain)
+                    self.add_trackers(k, new_tracker)
+                    if delete_old:
+                        self.remove_trackers(k, tracker)
+
+        except Exception as e:
+            logger.error(f"add new trackers failed with error: {e}")
+
+    def update_uncategorized_torrents(self):
+        try:
+            res = self.get_maindata()
+            torrents = res["torrents"]
+            for k, v in torrents.items():
+                category = v["category"]
+                if not category:
+                    tracker = v["tracker"]
+                    for _category, _trackers in self.categories.items():
+                        for _tracker in _trackers:
+                            if _tracker in tracker:
+                                self.set_category(k, _category)
+        except Exception as e:
+            logger.error(f"update uncategorized torrents failed with error: {e}")
+
 
 if __name__ == '__main__':
-    q = QB()
+    q = QbittorrentScripts()
     q.login()
-    q.get_maindata()
