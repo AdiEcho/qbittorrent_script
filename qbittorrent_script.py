@@ -85,6 +85,15 @@ class QbittorrentBase:
         else:
             logger.error("remove trackers failed")
 
+    def get_trackers(self, hashes):
+        url = self.url + "/api/v2/torrents/trackers"
+        params = {
+            "hash": hashes
+        }
+        res = self.session.get(url, params=params)
+        res.raise_for_status()
+        return res.json()
+
 
 class QbittorrentScripts(QbittorrentBase):
     def __init__(self):
@@ -101,6 +110,29 @@ class QbittorrentScripts(QbittorrentBase):
                     self.add_trackers(k, new_tracker)
                     if delete_old:
                         self.remove_trackers(k, tracker)
+        except Exception as e:
+            logger.error(f"add new trackers failed with error: {e}")
+
+    def add_new_trackers_by_category(self, category, old_tracker_domain, new_tracker_domain):
+        try:
+            res = self.get_maindata()
+            torrents = res["torrents"]
+            for k, v in torrents.items():
+                _category = v["category"]
+                if _category != category:
+                    continue
+                trackers = self.get_trackers(k)
+                for t in trackers:
+                    if old_tracker_domain in t["url"]:
+                        # check if new tracker has added
+                        continue_flag = False
+                        for tt in trackers:
+                            if new_tracker_domain in tt["url"]:
+                                continue_flag = True
+                        if continue_flag:
+                            continue
+                        new_tracker = t["url"].replace(old_tracker_domain, new_tracker_domain)
+                        self.add_trackers(k, new_tracker)
 
         except Exception as e:
             logger.error(f"add new trackers failed with error: {e}")
