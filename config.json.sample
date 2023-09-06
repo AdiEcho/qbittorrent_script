@@ -1,0 +1,11 @@
+{
+  "url": "http://127.0.0.1:8080",
+  "username": "",
+  "password": "",
+  "categories": {
+    "BTSchool": ["btschool"],
+    "HDU": ["upxin"],
+    "TJUPT（北洋）": ["tjupt"],
+    "南洋PT": ["nanyangpt"],
+  }
+}
