@@ -98,6 +98,7 @@ class QbittorrentBase:
 class QbittorrentScripts(QbittorrentBase):
     def __init__(self):
         super().__init__()
+        self.login()
 
     def add_new_trackers(self, old_tracker_domain, new_tracker_domain, delete_old=False):
         try:
@@ -143,16 +144,21 @@ class QbittorrentScripts(QbittorrentBase):
             torrents = res["torrents"]
             for k, v in torrents.items():
                 category = v["category"]
-                if not category:
-                    tracker = v["tracker"]
+                if category:
+                    continue
+                trackers = self.get_trackers(k)
+                for t in trackers:
+                    tracker = t['url']
+                    if "http" not in tracker:
+                        continue
                     for _category, _trackers in self.categories.items():
-                        for _tracker in _trackers:
-                            if _tracker in tracker:
-                                self.set_category(k, _category)
+                        if any(_tracker in tracker for _tracker in _trackers):
+                            self.set_category(k, _category)
+                            break
         except Exception as e:
             logger.error(f"update uncategorized torrents failed with error: {e}")
 
 
 if __name__ == '__main__':
     q = QbittorrentScripts()
-    q.login()
+    q.update_uncategorized_torrents()
