@@ -55,7 +55,7 @@ class QbittorrentBase:
         res = self.session.post(url, data)
         res.raise_for_status()
         if res.status_code == 200:
-            logger.info("set category success")
+            logger.info(f"set category {category} success")
         else:
             logger.error("set category failed")
 
@@ -93,6 +93,30 @@ class QbittorrentBase:
         res = self.session.get(url, params=params)
         res.raise_for_status()
         return res.json()
+
+    def resume(self, hashes):
+        url = self.url + "/api/v2/torrents/resume"
+        data = {
+            "hashes": hashes
+        }
+        res = self.session.post(url, data)
+        res.raise_for_status()
+        if res.status_code == 200:
+            logger.info("resume torrents success")
+        else:
+            logger.error("resume torrents failed")
+
+    def pause(self, hashes):
+        url = self.url + "/api/v2/torrents/pause"
+        data = {
+            "hashes": hashes
+        }
+        res = self.session.post(url, data)
+        res.raise_for_status()
+        if res.status_code == 200:
+            logger.info("pause torrents success")
+        else:
+            logger.error("pause torrents failed")
 
 
 class QbittorrentScripts(QbittorrentBase):
@@ -138,6 +162,18 @@ class QbittorrentScripts(QbittorrentBase):
         except Exception as e:
             logger.error(f"add new trackers failed with error: {e}")
 
+    def update_torrents_category(self):
+        try:
+            res = self.get_maindata()
+            torrents = res["torrents"]
+            for k, v in torrents.items():
+                category = v["category"]
+                if not category.startswith("opencd"):
+                    continue
+                self.set_category(k, "OpenCD")
+        except Exception as e:
+            logger.error(f"update torrents category failed with error: {e}")
+
     def update_uncategorized_torrents(self):
         try:
             res = self.get_maindata()
@@ -158,7 +194,38 @@ class QbittorrentScripts(QbittorrentBase):
         except Exception as e:
             logger.error(f"update uncategorized torrents failed with error: {e}")
 
+    def resume_torrents_by_storage(self, storage=None):
+        try:
+            if not storage:
+                logger.error("please input storage name")
+                return
+            res = self.get_maindata()
+            torrents = res["torrents"]
+            for k, v in torrents.items():
+                save_path = v["save_path"]
+                if save_path.startswith(f'{storage}:\\'):
+                    self.resume(k)
+        except Exception as e:
+            logger.error(f"resume torrents by storage failed with error: {e}")
+
+    def stop_torrents_by_storage(self, storage=None):
+        try:
+            if not storage:
+                logger.error("please input storage name")
+                return
+            res = self.get_maindata()
+            torrents = res["torrents"]
+            for k, v in torrents.items():
+                save_path = v["save_path"]
+                if save_path.startswith(f'{storage}:\\'):
+                    self.pause(k)
+        except Exception as e:
+            logger.error(f"stop torrents by storage failed with error: {e}")
+
 
 if __name__ == '__main__':
     q = QbittorrentScripts()
+    # q.stop_torrents_by_storage("E")
+    # q.resume_torrents_by_storage("E")
     q.update_uncategorized_torrents()
+    # q.update_torrents_category()
